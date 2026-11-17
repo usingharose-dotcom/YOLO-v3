@@ -1,0 +1,30 @@
+name: Build Yolo VST3 (Windows)
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: DSP engine tests (MSVC)
+        shell: cmd
+        run: |
+          cl /nologo /O2 /EHsc /std:c++17 /ISource Tests\dsp_test.cpp /Fe:dsp_test.exe
+          dsp_test.exe
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Check plugin exists
+        shell: pwsh
+        run: Get-ChildItem -Recurse build/Yolo_artefacts/Release/VST3/Yolo.vst3
+      - name: Validate with pluginval
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pv.zip
+          Expand-Archive pv.zip -DestinationPath pv
+          .\pv\pluginval.exe --strictness-level 5 --validate-in-process --validate "build/Yolo_artefacts/Release/VST3/Yolo.vst3"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Yolo-VST3-Windows
+          path: build/Yolo_artefacts/Release/VST3/Yolo.vst3
